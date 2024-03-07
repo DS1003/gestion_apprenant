@@ -1,131 +1,135 @@
 #include <stdio.h>
-#include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
-
-#define MAX_LENGTH 10
-#define MAX_LENGTH8PASS 8
-
-int autoIdEtudiant = 10;
-int autoIdAdmin = 0;
-//------------------------------ Structure ------------------------------
-typedef struct
-{
-    int j, m, a;
-
-} DATE;
-
-struct Utilisateur {
-    char nom[MAX_LENGTH];
-    char role[MAX_LENGTH];
-};
+#include <unistd.h>
 
 
+#define LONGUEUR_MAX_LOGIN 15
+#define LONGUEUR_MAX_MDP 15
+
+// Structure pour stocker les informations de connexion
 typedef struct {
-    char nomFichier[100];
-    FILE *fichier;
-} File;
+    char login[LONGUEUR_MAX_LOGIN];
+    char motDePasse[LONGUEUR_MAX_MDP];
+} Identifiants;
 
-typedef struct {
-    int id;
-    char nom[50];
-    char prenom[50];
-    char matricule[10];
-    DATE dateNaissance;
-    char presence[31]; //présent / abscent
-    char messages[1000]; // 
-    int nbMessages;
-    int etat;
-    char classe[5];
-    int cumulretard; // quota maximal d'absences avant renvoi, paramétrable
-    int nbAbsences;
-} Etudiant;
+// Fonction pour vérifier les identifiants de connexion
+int verifierIdentifiants(Identifiants *identifiants, int nombreIdentifiants, char *login, char *motDePasse) {
+    for (int i = 0; i < nombreIdentifiants; i++) {
+        if (strcmp(identifiants[i].login, login) == 0 && strcmp(identifiants[i].motDePasse, motDePasse) == 0) {
+            return 1; // Identifiants valides
+        }
+    }
+    return 0; // Identifiants invalides
+}
 
+int menuAdmin() {
+    // Définition du menu de l'administrateur
+    int choix = 0;
+    do {
+        printf("--------------------------------------------------------------------------\n");
+        printf("\t\t\tBienvenue dans le menu de l'administrateur:\n");
+        printf("--------------------------------------------------------------------------\n");
+        printf("1 ---------- GESTION DES ÉTUDIANTS\n");
+        printf("2 ---------- GÉNÉRATION DE FICHIERS\n");
+        printf("3 ---------- MARQUER LES PRÉSENCES\n");
+        printf("4 ---------- ENVOYER UN MESSAGE\n");
+        printf("5 ---------- Quitter\n");
+        printf("\n---------- Entrez votre choix : ");
+        scanf("%d", &choix);
+        if (choix < 1 || choix > 5) {
+            printf("Choix invalide. Veuillez entrer un choix entre  1 et 5.\n");
+        }
+    } while (choix < 1 || choix > 5);
+    return choix;
+}
 
-//------------------------------------------------------ Prototype ---------------------------------------------------------
-void genererMatricule  (char matricule[10], Etudiant etudiant);
+int menuEtudiant() {
+    // Définition du menu de l'étudiant
+    int choix = 0;
+    do {
+        printf("--------------------------------------------------------------------------\n");
+        printf("\t\t\tBienvenue dans le menu de l'apprenant :\n");
+        printf("--------------------------------------------------------------------------\n");
+        printf("1 ---------- GESTION DES ÉTUDIANTS\n");
+        printf("2 ---------- GÉNÉRATION DE FICHIERS\n");
+        printf("3 ---------- MARQUER SA PRÉSENCE\n");
+        printf("4 ---------- Message (0)\n");
+        printf("5 ---------- Déconnexion\n");
+        printf("\n---------- Entrez votre choix : ");
+        scanf("%d", &choix);
+        if (choix < 1 || choix > 5) {
+            printf("Choix invalide. Veuillez entrer un choix entre  1 et 5.\n");
+        }
+    } while (choix < 1 || choix > 5);
+    return choix;
+}
 
-//--------------------------------------------------------- Main -----------------------------------------------------------
-int main () {
+int main() {
+    // Création des fichiers pour stocker les identifiants
+    FILE *fichierAdmin = fopen("admin.txt", "r");
+    FILE *fichierEtudiant = fopen("etudiant.txt", "r");
 
-    char nom[MAX_LENGTH8PASS];
-    char motdepasse[MAX_LENGTH8PASS];
-    int taille = 0;
-
-    printf("Nom d'utilisateur : ");
-    scanf("%s", nom);
-    printf("Mot de passe : ");
-    scanf("%s", motdepasse);
-
-
-
-
-    FILE *fichier;
-    char texte[100];
-
-    // Ouvrir le fichier en écriture
-    fichier = fopen("apprenant.txt", "w");
-
-    if (fichier == NULL) {
-        printf("Impossible d'ouvrir le fichier.");
+    if (fichierAdmin == NULL || fichierEtudiant == NULL) {
+        printf("Erreur lors de l'ouverture des fichiers.\n");
         return 1;
     }
 
-    // Demander à l'utilisateur d'entrer du texte
-    printf("Entrez du texte (max 100 caracteres) : ");
-    scanf("%s", texte);
+    // Variables pour stocker les identifiants
+    Identifiants identifiantsAdmin[100]; // Pour stocker jusqu'à 100 identifiants d'administrateur
+    Identifiants identifiantsEtudiant[100]; // Pour stocker jusqu'à 100 identifiants d'étudiant
 
-    // Écrire le texte dans le fichier
-    fprintf(fichier, "%s", texte);
+    int nombreIdentifiantsAdmin = 0;
+    int nombreIdentifiantsEtudiant = 0;
 
-    // Fermer le fichier
-    fclose(fichier);
+    // Lecture des identifiants de l'admin
+    while (fscanf(fichierAdmin, "%s %s", identifiantsAdmin[nombreIdentifiantsAdmin].login, identifiantsAdmin[nombreIdentifiantsAdmin].motDePasse) == 2) {
+        nombreIdentifiantsAdmin++;
+    }
+    fclose(fichierAdmin);
 
-    printf("Le texte a ete ecrit dans le fichier.\n");
+    // Lecture des identifiants de l'étudiant
+    while (fscanf(fichierEtudiant, "%s %s", identifiantsEtudiant[nombreIdentifiantsEtudiant].login, identifiantsEtudiant[nombreIdentifiantsEtudiant].motDePasse) == 2) {
+        nombreIdentifiantsEtudiant++;
+    }
+    fclose(fichierEtudiant);
+
+    // Variables pour l'authentification
+    char saisieLogin[LONGUEUR_MAX_LOGIN];
+    char *saisieMotDePasse;
+
+    // Authentification
+    do {
+        printf("---------------- Connexion ----------------\n\n");
+        printf("Login : ");
+
+        // Saisie du login
+        fgets(saisieLogin, LONGUEUR_MAX_LOGIN, stdin);
+        saisieLogin[strcspn(saisieLogin, "\n")] = 0; // Supprime le caractère de nouvelle ligne
+        if (strlen(saisieLogin) == 0) {
+            printf("\nVous avez laissé le champ vide. Veuillez rentrer votre login.\n");
+            continue;
+        }
+
+        // Saisie du mot de passe
+        saisieMotDePasse = getpass("Mot de passe: ");
+        if (strlen(saisieMotDePasse) == 0) {
+            printf("\nVous avez laissé le champ vide. Veuillez entrer votre mot de passe.\n");
+            continue;
+        }
+
+        // Vérification des identifiants
+        if (verifierIdentifiants(identifiantsAdmin, nombreIdentifiantsAdmin, saisieLogin, saisieMotDePasse)) {
+            // Menu pour l'admin
+            menuAdmin();
+        } else if (verifierIdentifiants(identifiantsEtudiant, nombreIdentifiantsEtudiant, saisieLogin, saisieMotDePasse)) {
+            // Menu pour l'étudiant
+            menuEtudiant();
+        } else {
+            printf("Login ou mot de passe invalides.\n");
+        }
+
+    } while (!(verifierIdentifiants(identifiantsAdmin, nombreIdentifiantsAdmin, saisieLogin, saisieMotDePasse)) || !(verifierIdentifiants(identifiantsEtudiant, nombreIdentifiantsEtudiant, saisieLogin, saisieMotDePasse)));
 
     return 0;
 }
-
-
-//--------------------------------------------------------- Functions -------------------------------------------------------
-DATE saisiedate(void)
-{
-    DATE d;
-    printf("Entrez votre date de naissance: \n");
-    printf("Jour : ");
-    scanf("%d", &d.j);
-    printf("Mois : ");
-    scanf("%d", &d.m);
-    printf("Annee : ");
-    scanf("%d", &d.a);
-    return d;
-}
-
-int verifierConnexion(char *nom, char *motdepasse, struct Utilisateur *utilisateurs, int taille) {
-    for (int i = 0; i < taille; i++) {
-        if (strcmp(nom, utilisateurs[i].nom) == 0 && strcmp(motdepasse, utilisateurs[i].role) == 0) {
-            return 1; // Connexion réussie
-        }
-    }
-    return 0; // Connexion échouée
-}
-
-Etudiant saisirEtudiant(){
-    Etudiant e;
-    int taille = 10;
-    e.id = ++ autoIdEtudiant;
-    genererMatricule(e.matricule, e);
-    puts("Donnez le nom :");
-    scanf("%s", e.nom);
-    puts("Donnez le prénom :");
-    scanf("%s", e.prenom);
-    e.dateNaissance = saisiedate();
-    return e;
-}
-
-void genererMatricule  (char matricule[10], Etudiant etudiant) {
-    //matricule ex: MAT-PM0001 (MAT-1èrelettre prénom+1èrelettre nom + id)
-    sprintf(matricule,"MAT-%c%c%04d", toupper(etudiant.prenom[0]), toupper(etudiant.nom[0]), etudiant.id);
-}
-
-// Création des fichiers pour stocker les identifiants
-    
